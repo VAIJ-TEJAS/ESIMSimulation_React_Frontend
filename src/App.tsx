@@ -1,25 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
-import { Button } from 'antd';
+import { Button, Modal, Input, Select } from 'antd';
 import { Stage, Layer, Rect, Line, Group, Text, Image } from 'react-konva';
 import useImage from 'use-image';
 import Phone from "./assets/images/phone.png"
 
-interface Shape {
+const { Option } = Select;
+
+interface IDevice {
   x: number;
   y: number;
   id: string;
   imei: string;
+  profile: string | null;
+  serviceProvider: string | null;
 }
 
-interface ServiceProvider {
+interface IProvider {
   x: number;
   y: number;
   id: string;
   name: string;
 }
 
-interface ServiceProviderProps {
+interface IProviderProps {
   x: number;
   y: number;
   id: string;
@@ -27,13 +31,8 @@ interface ServiceProviderProps {
   onDragMove: (id: string, x: number, y: number) => void;
 }
 
-interface CentralServiceProviderProps {
-  shapes: Shape[];
-  serviceProviders: ServiceProvider[];
-}
 
-
-const Mobile: React.FC<Shape & { onDragMove: (id: string, x: number, y: number) => void }> = ({ x, y, id, imei, onDragMove }) => {
+const Mobile: React.FC<IDevice & { onDragMove: (id: string, x: number, y: number) => void }> = ({ x, y, id, imei, profile, onDragMove }) => {
   const [image] = useImage(Phone);
 
   const handleDragMove = (e: any) => {
@@ -71,12 +70,19 @@ const Mobile: React.FC<Shape & { onDragMove: (id: string, x: number, y: number) 
         x={-15}
         y={-15}
       />
+      <Text
+        text={"Profile: " + profile}
+        fontSize={12}
+        fill="black"
+        x={-15}
+        y={100 + 5}
+      />
     </Group>
   );
 };
 
 
-const ServiceProviderComponent: React.FC<ServiceProviderProps> = ({ x, y, id, name, onDragMove }) => {
+const ServiceProviderComponent: React.FC<IProviderProps> = ({ x, y, id, name, onDragMove }) => {
   const handleDragMove = (e: any) => {
     onDragMove(id, e.target.x(), e.target.y());
   };
@@ -123,14 +129,11 @@ const ServiceProviderComponent: React.FC<ServiceProviderProps> = ({ x, y, id, na
   );
 };
 
-const CentralServiceProvider: React.FC<CentralServiceProviderProps> = ({ shapes, serviceProviders }) => {
+const CentralServiceProvider: React.FC = () => {
   const width = 150;
   const height = 150;
   const x = window.innerWidth / 2 - width / 2;
   const y = window.innerHeight / 2 - height / 2;
-
-  const imeiList = shapes.map((shape) => `IMEI: ${shape.imei}`).join(", \n");
-  const serviceProviderList = serviceProviders.map((provider) => provider.name).join(", ");
 
   return (
     <Group>
@@ -151,26 +154,20 @@ const CentralServiceProvider: React.FC<CentralServiceProviderProps> = ({ shapes,
         fontSize={14}
         fill="white" // Text color
       />
-      <Text
-        x={x}
-        y={20} // Position above the centralized service provider
-        text={imeiList}
-        fontSize={14}
-      />
-
-      <Text
-        x={x}
-        y={y + height + 10} // Position below the centralized service provider
-        text={serviceProviderList}
-        fontSize={14}
-      />
     </Group>
   );
 };
 
 const App: React.FC = () => {
-  const [shapes, setShapes] = useState<Shape[]>([]);
-  const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
+  const [devices, setDevices] = useState<IDevice[]>([]);
+  const [serviceProviders, setServiceProviders] = useState<IProvider[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentDeviceId, setCurrentDeviceId] = useState(null);
+  const [profileName, setProfileName] = useState('');
+  const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [isAssignModalVisible, setIsAssignModalVisible] = useState(false);
+  const [selectedProfileForAssignment, setSelectedProfileForAssignment] = useState<string | null>(null);
+  const [selectedServiceProvider, setSelectedServiceProvider] = useState<string | null>(null);
 
   const generateRandomImei = (): string => {
     // This is a simplified and not real-world accurate method of generating a random IMEI for demonstration purposes
@@ -182,19 +179,21 @@ const App: React.FC = () => {
   };
 
   const addShape = () => {
-    const newShape: Shape = {
+    const newShape: IDevice = {
       x: 100,
       y: Math.random() * (window.innerHeight - 50),
       id: Math.random().toString(36).substr(2, 9),
-      imei: generateRandomImei(), // Generate and assign a random IMEI number
+      imei: generateRandomImei(),
+      profile: null,
+      serviceProvider: null
     };
-    setShapes((shapes) => [...shapes, newShape]);
+    setDevices((shapes) => [...shapes, newShape]);
   };
 
   const addServiceProvider = () => {
     const name = prompt("Enter the name of the service provider:");
     if (name) {
-      const newProvider: ServiceProvider = {
+      const newProvider: IProvider = {
         x: window.innerWidth - 200, // Example positioning, adjust as needed
         y: Math.random() * (window.innerHeight - 50),
         id: Math.random().toString(36).substr(2, 9),
@@ -205,7 +204,7 @@ const App: React.FC = () => {
   };
 
   const handleDragMove = (id: string, x: number, y: number) => {
-    setShapes((shapes) =>
+    setDevices((shapes) =>
       shapes.map((shape) => (shape.id === id ? { ...shape, x, y } : shape))
     );
   };
@@ -218,21 +217,133 @@ const App: React.FC = () => {
     );
   };
 
+  const showModal = (deviceId: any) => {
+    setCurrentDeviceId(deviceId);
+    setIsModalVisible(true);
+  };
+
+  const handleOk = () => {
+    const updatedDevices = devices.map((device) => {
+      if (device.id === currentDeviceId) {
+        return { ...device, profile: profileName };
+      }
+      return device;
+    });
+    setDevices(updatedDevices);
+    setIsModalVisible(false);
+    setProfileName('');
+  };
+
+  const handleCancel = () => {
+    setIsModalVisible(false);
+    setProfileName('');
+  };
+
+  const addProfile = () => {
+    const newProfile = { id: Math.random().toString(36).substr(2, 9), name: profileName };
+    setProfiles((prevProfiles) => [...prevProfiles, newProfile]);
+    // Optionally close the modal or clear the input field here
+  };
+
+  const handleAssignDevices = () => {
+    if (!selectedProfileForAssignment || !selectedServiceProvider) {
+      // Optionally show an error message or simply return
+      console.error("Both a profile and a service provider must be selected.");
+      return;
+    }
+
+    const updatedDevices = devices.map((device) => {
+      if (device.profile === selectedProfileForAssignment) {
+        return { ...device, serviceProvider: selectedServiceProvider };
+      }
+      return device;
+    });
+
+    setDevices(updatedDevices);
+    setIsAssignModalVisible(false);
+    setSelectedProfileForAssignment(null);
+    setSelectedServiceProvider(null);
+  };
+
   return (
     <div className=''>
+      <Modal title="Device Profile" visible={isModalVisible} onOk={handleOk} onCancel={handleCancel}>
+        <Select
+          style={{ width: '100%', marginBottom: 8 }}
+          placeholder="Select a profile"
+          onChange={(value) => setProfileName(value)}
+          value={profileName}
+          dropdownRender={(menu) => (
+            <>
+              {menu}
+              <div style={{ display: 'flex', flexWrap: 'nowrap', padding: 8 }}>
+                <Input style={{ flex: 'auto' }} value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+                <Button type="link" onClick={addProfile}>
+                  Add
+                </Button>
+              </div>
+            </>
+          )}
+        >
+          {profiles.map((profile) => (
+            <Option key={profile.id} value={profile.name}>{profile.name}</Option>
+          ))}
+        </Select>
+      </Modal>
+      <Modal
+        title="Assign Devices to Service Provider"
+        open={isAssignModalVisible}
+        onOk={handleAssignDevices}
+        onCancel={() => setIsAssignModalVisible(false)}
+      >
+        <Select
+          style={{ width: '100%' }}
+          placeholder="Select a service provider"
+          onChange={(value) => setSelectedServiceProvider(value)}
+          value={selectedServiceProvider}
+        >
+          {serviceProviders.map((provider) => (
+            <Option key={provider.id} value={provider.id}>{provider.name}</Option>
+          ))}
+        </Select>
+      </Modal>
+
       <div className='absolute z-10 h-full p-2'>
         <div className='h-full flex flex-col justify-between bg-blue-300 rounded-lg shadow-lg'>
           <div className='p-2'>
-            <Button type='primary' onClick={addShape}>+</Button>
+            <Button type='primary' onClick={addShape}>+ D</Button>
           </div>
           <div className='p-2'>
-            <Button type='primary' onClick={addServiceProvider}>+</Button>
+            <Button type='primary' onClick={addServiceProvider}>+ P</Button>
           </div>
+        </div>
+      </div>
+      <div className='right-0 absolute z-10 h-full p-2'>
+        <div className='h-full flex flex-col bg-blue-300 rounded-lg shadow-lg'>
+          {profiles.map((profile) => (
+            <div className='p-1'>
+              <Button type='primary' key={profile.id} onClick={() => {
+                setSelectedProfileForAssignment(profile.name);
+                setIsAssignModalVisible(true);
+              }}>{profile.name}</Button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className='left-20 absolute z-10 p-2'>
+        <div className='h-full flex rounded-lg shadow-lg'>
+          {devices.map((device: IDevice) => {
+            return (
+              <div className='p-1'>
+                <Button type='primary' onClick={() => showModal(device.id)}>{device.imei + " : " + device?.profile + " : " + device?.serviceProvider}</Button>
+              </div>
+            )
+          })}
         </div>
       </div>
       <Stage width={window.innerWidth} height={window.innerHeight} className=''>
         <Layer>
-          {shapes.map((shape) => (
+          {devices.map((shape) => (
             <Mobile
               key={shape.id}
               id={shape.id}
@@ -240,6 +351,8 @@ const App: React.FC = () => {
               y={shape.y}
               imei={shape.imei}
               onDragMove={handleDragMove}
+              serviceProvider={shape.serviceProvider}
+              profile={shape.profile}
             />
           ))}
           {serviceProviders.map((provider) => (
@@ -252,7 +365,7 @@ const App: React.FC = () => {
               onDragMove={handleServiceProviderDragMove}
             />
           ))}
-          <CentralServiceProvider shapes={shapes} serviceProviders={serviceProviders} />
+          <CentralServiceProvider />
         </Layer>
       </Stage>
     </div>
