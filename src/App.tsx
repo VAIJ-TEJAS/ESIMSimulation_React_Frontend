@@ -14,13 +14,15 @@ interface IDevice {
   imei: string;
   profile: string | null;
   serviceProvider: string | null;
+  lineColor: string;
 }
 
 interface IProvider {
   x: number;
   y: number;
-  id: string;
   name: string;
+  id: string;
+  color: string;
 }
 
 interface IProviderProps {
@@ -32,7 +34,7 @@ interface IProviderProps {
 }
 
 
-const Mobile: React.FC<IDevice & { onDragMove: (id: string, x: number, y: number) => void }> = ({ x, y, id, imei, profile, onDragMove }) => {
+const Mobile: React.FC<IDevice & { onDragMove: (id: string, x: number, y: number) => void }> = ({ x, y, id, imei, profile, serviceProvider, lineColor, onDragMove }) => {
   const [image] = useImage(Phone);
 
   const handleDragMove = (e: any) => {
@@ -51,7 +53,7 @@ const Mobile: React.FC<IDevice & { onDragMove: (id: string, x: number, y: number
           25, 15,
           window.innerWidth / 2 - x, window.innerHeight / 2 - y,
         ]}
-        stroke="black"
+        stroke={lineColor}
         strokeWidth={4}
         offsetX={-25}
         offsetY={-25}
@@ -77,12 +79,19 @@ const Mobile: React.FC<IDevice & { onDragMove: (id: string, x: number, y: number
         x={-15}
         y={100 + 5}
       />
+      <Text
+        text={"Provider : " + serviceProvider}
+        fontSize={12}
+        fill="black"
+        x={-15}
+        y={100 + 15}
+      />
     </Group>
   );
 };
 
 
-const ServiceProviderComponent: React.FC<IProviderProps> = ({ x, y, id, name, onDragMove }) => {
+const ServiceProviderComponent: React.FC<IProviderProps & { color: string }> = ({ x, y, id, name, onDragMove, color }) => {
   const handleDragMove = (e: any) => {
     onDragMove(id, e.target.x(), e.target.y());
   };
@@ -105,7 +114,7 @@ const ServiceProviderComponent: React.FC<IProviderProps> = ({ x, y, id, name, on
           0, 0,
           window.innerWidth / 2 - x, window.innerHeight / 2 - y,
         ]}
-        stroke="red"
+        stroke={color}
         strokeWidth={4}
       />
       <Rect
@@ -169,6 +178,10 @@ const App: React.FC = () => {
   const [selectedProfileForAssignment, setSelectedProfileForAssignment] = useState<string | null>(null);
   const [selectedServiceProvider, setSelectedServiceProvider] = useState<string | null>(null);
 
+  const generateRandomColor = () => {
+    return '#' + Math.floor(Math.random() * 16777215).toString(16);
+  };
+
   const generateRandomImei = (): string => {
     // This is a simplified and not real-world accurate method of generating a random IMEI for demonstration purposes
     let imei = '';
@@ -185,7 +198,8 @@ const App: React.FC = () => {
       id: Math.random().toString(36).substr(2, 9),
       imei: generateRandomImei(),
       profile: null,
-      serviceProvider: null
+      serviceProvider: null,
+      lineColor: "black"
     };
     setDevices((shapes) => [...shapes, newShape]);
   };
@@ -198,6 +212,7 @@ const App: React.FC = () => {
         y: Math.random() * (window.innerHeight - 50),
         id: Math.random().toString(36).substr(2, 9),
         name,
+        color: generateRandomColor(),
       };
       setServiceProviders((providers) => [...providers, newProvider]);
     }
@@ -252,6 +267,8 @@ const App: React.FC = () => {
       return;
     }
 
+    console.log(selectedServiceProvider)
+
     const updatedDevices = devices.map((device) => {
       if (device.profile === selectedProfileForAssignment) {
         return { ...device, serviceProvider: selectedServiceProvider };
@@ -299,11 +316,14 @@ const App: React.FC = () => {
         <Select
           style={{ width: '100%' }}
           placeholder="Select a service provider"
-          onChange={(value) => setSelectedServiceProvider(value)}
+          onChange={(value) => {
+            console.log(value)
+            setSelectedServiceProvider(value)
+          }}
           value={selectedServiceProvider}
         >
           {serviceProviders.map((provider) => (
-            <Option key={provider.id} value={provider.id}>{provider.name}</Option>
+            <Option key={provider.id} value={provider.name}>{provider.name}</Option>
           ))}
         </Select>
       </Modal>
@@ -343,18 +363,24 @@ const App: React.FC = () => {
       </div>
       <Stage width={window.innerWidth} height={window.innerHeight} className=''>
         <Layer>
-          {devices.map((shape) => (
-            <Mobile
-              key={shape.id}
-              id={shape.id}
-              x={shape.x}
-              y={shape.y}
-              imei={shape.imei}
-              onDragMove={handleDragMove}
-              serviceProvider={shape.serviceProvider}
-              profile={shape.profile}
-            />
-          ))}
+          {devices.map((shape) => {
+            // Find the service provider by name to get the color
+            const serviceProvider = serviceProviders.find(provider => provider.name === shape.serviceProvider);
+            const lineColor = serviceProvider ? serviceProvider.color : 'black'; // Default to black if no provider is found
+            return (
+              <Mobile
+                key={shape.id}
+                id={shape.id}
+                x={shape.x}
+                y={shape.y}
+                imei={shape.imei}
+                onDragMove={handleDragMove}
+                serviceProvider={shape?.serviceProvider}
+                profile={shape.profile}
+                lineColor={lineColor}
+              />
+            )
+          })}
           {serviceProviders.map((provider) => (
             <ServiceProviderComponent
               key={provider.id}
@@ -362,6 +388,7 @@ const App: React.FC = () => {
               x={provider.x}
               y={provider.y}
               name={provider.name}
+              color={provider.color}
               onDragMove={handleServiceProviderDragMove}
             />
           ))}
