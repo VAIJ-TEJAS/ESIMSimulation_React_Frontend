@@ -7,8 +7,8 @@ import { Form } from "antd";
 import { Input } from "antd";
 import { message } from "antd";
 
-const SERVER_URL = "http://192.168.1.111:3000/";
-const PEER_SERVER_HOST = "/";
+const SERVER_URL = "https://13.233.126.47:443/";
+const PEER_SERVER_HOST = "13.233.126.47";
 const PEER_SERVER_PORT = "9000";
 const socket = io(SERVER_URL, {
   transports: ["websocket"], 
