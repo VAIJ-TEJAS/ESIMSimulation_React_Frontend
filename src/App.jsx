@@ -6,6 +6,7 @@ import { Button, Modal } from "antd";
 import { Form } from "antd";
 import { Input } from "antd";
 import { message } from "antd";
+import CollegeLogo from "../src/assets/clglogo.webp"
 
 const SERVER_URL = "https://13.233.126.47:443/";
 const PEER_SERVER_HOST = "13.233.126.47";
@@ -166,7 +167,16 @@ function App() {
           </Form.Item>
         </Form>
       </Modal>
-      <h2>E-Sim Simulation</h2>
+      <div style={{
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+      }}>
+        <img src={CollegeLogo} style={{
+          height: '160px',
+        }}/>
+      </div>
+      <h2>PCCOE, Pune - Peer to Peer Calling App</h2>
       <h2>Welcome, {username}</h2>
       <h3>{myId.current}</h3>
       {Object.keys(users).map(
